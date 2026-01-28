@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dubins Path Sample</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", sans-serif;
+    }
+    body {
+      margin: 0;
+      background: #f6f7fb;
+      color: #1c1c1c;
+    }
+    header {
+      padding: 16px 24px;
+      background: #1b3a57;
+      color: #fff;
+      font-size: 20px;
+      font-weight: 600;
+    }
+    main {
+      display: flex;
+      height: calc(100vh - 64px);
+    }
+    .panel {
+      width: 320px;
+      padding: 20px;
+      background: #ffffff;
+      box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08);
+      overflow-y: auto;
+    }
+    .panel h2 {
+      font-size: 16px;
+      margin: 16px 0 8px;
+      color: #0f3057;
+    }
+    .field {
+      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .field label {
+      font-size: 12px;
+      color: #4e5d6c;
+    }
+    .field input {
+      padding: 8px 10px;
+      border: 1px solid #c9d4e1;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .notes {
+      font-size: 12px;
+      color: #4e5d6c;
+      line-height: 1.6;
+    }
+    .viewer {
+      flex: 1;
+      position: relative;
+      background: #eef2f7;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .legend {
+      position: absolute;
+      right: 20px;
+      top: 20px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 12px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .legend-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 4px;
+    }
+    .legend-item:last-child {
+      margin-bottom: 0;
+    }
+  </style>
+</head>
+<body>
+  <header>Dubins Path Sample</header>
+  <main>
+    <section class="panel">
+      <h2>Start Pose</h2>
+      <div class="field">
+        <label for="x1">x1</label>
+        <input id="x1" type="number" step="0.1" value="0" />
+      </div>
+      <div class="field">
+        <label for="y1">y1</label>
+        <input id="y1" type="number" step="0.1" value="0" />
+      </div>
+      <div class="field">
+        <label for="theta1">θ1 (deg)</label>
+        <input id="theta1" type="number" step="1" value="0" />
+      </div>
+
+      <h2>Goal Pose</h2>
+      <div class="field">
+        <label for="x2">x2</label>
+        <input id="x2" type="number" step="0.1" value="8" />
+      </div>
+      <div class="field">
+        <label for="y2">y2</label>
+        <input id="y2" type="number" step="0.1" value="5" />
+      </div>
+      <div class="field">
+        <label for="theta2">θ2 (deg)</label>
+        <input id="theta2" type="number" step="1" value="90" />
+      </div>
+
+      <h2>Limited Parameter</h2>
+      <div class="field">
+        <label for="radius">R (最小旋回半径)</label>
+        <input id="radius" type="number" step="0.1" value="2" min="0.1" />
+      </div>
+
+      <h2>Viewer</h2>
+      <div class="field">
+        <label for="scale">拡大縮小率 (px / unit)</label>
+        <input id="scale" type="number" step="1" value="40" min="5" />
+      </div>
+
+      <p class="notes">
+        入力を変更すると自動的にDubins Pathを再計算します。<br />
+        角度は度数法で入力してください。
+      </p>
+    </section>
+
+    <section class="viewer">
+      <canvas id="canvas"></canvas>
+      <div class="legend" id="legend"></div>
+    </section>
+  </main>
+
+  <script>
+    const inputs = Array.from(document.querySelectorAll('input'));
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const legend = document.getElementById('legend');
+
+    const COLORS = [
+      '#1b9aaa',
+      '#ef476f',
+      '#ffc43d',
+      '#06d6a0',
+      '#118ab2',
+      '#8d5cf5'
+    ];
+
+    const PATH_TYPES = [
+      { key: 'LSL', label: 'LSL' },
+      { key: 'LSR', label: 'LSR' },
+      { key: 'RSL', label: 'RSL' },
+      { key: 'RSR', label: 'RSR' },
+      { key: 'RLR', label: 'RLR' },
+      { key: 'LRL', label: 'LRL' }
+    ];
+
+    function toRad(deg) {
+      return (deg * Math.PI) / 180;
+    }
+
+    function mod2pi(theta) {
+      const twoPi = 2 * Math.PI;
+      return ((theta % twoPi) + twoPi) % twoPi;
+    }
+
+    function resizeCanvas() {
+      const { width, height } = canvas.getBoundingClientRect();
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = width * ratio;
+      canvas.height = height * ratio;
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    }
+
+    function getState() {
+      const values = {};
+      inputs.forEach((input) => {
+        values[input.id] = Number(input.value);
+      });
+      return {
+        x1: values.x1,
+        y1: values.y1,
+        theta1: toRad(values.theta1),
+        x2: values.x2,
+        y2: values.y2,
+        theta2: toRad(values.theta2),
+        R: Math.max(values.radius, 0.01),
+        scale: Math.max(values.scale, 1)
+      };
+    }
+
+    function computeIntermediate(q0, q1, rho) {
+      const dx = q1[0] - q0[0];
+      const dy = q1[1] - q0[1];
+      const D = Math.hypot(dx, dy);
+      const d = D / rho;
+      const theta = d > 0 ? mod2pi(Math.atan2(dy, dx)) : 0;
+      const alpha = mod2pi(q0[2] - theta);
+      const beta = mod2pi(q1[2] - theta);
+      return {
+        alpha,
+        beta,
+        d,
+        sa: Math.sin(alpha),
+        sb: Math.sin(beta),
+        ca: Math.cos(alpha),
+        cb: Math.cos(beta),
+        c_ab: Math.cos(alpha - beta),
+        d_sq: d * d
+      };
+    }
+
+    function dubinsLSL(inData) {
+      const tmp0 = inData.d + inData.sa - inData.sb;
+      const p_sq = 2 + inData.d_sq - 2 * inData.c_ab + 2 * inData.d * (inData.sa - inData.sb);
+      if (p_sq < 0) return null;
+      const tmp1 = Math.atan2(inData.cb - inData.ca, tmp0);
+      return [mod2pi(tmp1 - inData.alpha), Math.sqrt(p_sq), mod2pi(inData.beta - tmp1)];
+    }
+
+    function dubinsRSR(inData) {
+      const tmp0 = inData.d - inData.sa + inData.sb;
+      const p_sq = 2 + inData.d_sq - 2 * inData.c_ab + 2 * inData.d * (inData.sb - inData.sa);
+      if (p_sq < 0) return null;
+      const tmp1 = Math.atan2(inData.ca - inData.cb, tmp0);
+      return [mod2pi(inData.alpha - tmp1), Math.sqrt(p_sq), mod2pi(tmp1 - inData.beta)];
+    }
+
+    function dubinsLSR(inData) {
+      const p_sq = -2 + inData.d_sq + 2 * inData.c_ab + 2 * inData.d * (inData.sa + inData.sb);
+      if (p_sq < 0) return null;
+      const p = Math.sqrt(p_sq);
+      const tmp0 = Math.atan2(-inData.ca - inData.cb, inData.d + inData.sa + inData.sb) - Math.atan2(-2, p);
+      return [mod2pi(tmp0 - inData.alpha), p, mod2pi(tmp0 - mod2pi(inData.beta))];
+    }
+
+    function dubinsRSL(inData) {
+      const p_sq = -2 + inData.d_sq + 2 * inData.c_ab - 2 * inData.d * (inData.sa + inData.sb);
+      if (p_sq < 0) return null;
+      const p = Math.sqrt(p_sq);
+      const tmp0 = Math.atan2(inData.ca + inData.cb, inData.d - inData.sa - inData.sb) - Math.atan2(2, p);
+      return [mod2pi(inData.alpha - tmp0), p, mod2pi(inData.beta - tmp0)];
+    }
+
+    function dubinsRLR(inData) {
+      const tmp0 = (6 - inData.d_sq + 2 * inData.c_ab + 2 * inData.d * (inData.sa - inData.sb)) / 8;
+      if (Math.abs(tmp0) > 1) return null;
+      const p = mod2pi(2 * Math.PI - Math.acos(tmp0));
+      const phi = Math.atan2(inData.ca - inData.cb, inData.d - inData.sa + inData.sb);
+      const t = mod2pi(inData.alpha - phi + mod2pi(p / 2));
+      return [t, p, mod2pi(inData.alpha - inData.beta - t + mod2pi(p))];
+    }
+
+    function dubinsLRL(inData) {
+      const tmp0 = (6 - inData.d_sq + 2 * inData.c_ab + 2 * inData.d * (inData.sb - inData.sa)) / 8;
+      if (Math.abs(tmp0) > 1) return null;
+      const p = mod2pi(2 * Math.PI - Math.acos(tmp0));
+      const phi = Math.atan2(inData.ca - inData.cb, inData.d + inData.sa - inData.sb);
+      const t = mod2pi(-inData.alpha - phi + p / 2);
+      return [t, p, mod2pi(mod2pi(inData.beta) - inData.alpha - t + mod2pi(p))];
+    }
+
+    function dubinsSegment(qi, type, t) {
+      const st = Math.sin(qi[2]);
+      const ct = Math.cos(qi[2]);
+      if (type === 'L') {
+        return [
+          Math.sin(qi[2] + t) - st + qi[0],
+          -Math.cos(qi[2] + t) + ct + qi[1],
+          qi[2] + t
+        ];
+      }
+      if (type === 'R') {
+        return [
+          -Math.sin(qi[2] - t) + st + qi[0],
+          Math.cos(qi[2] - t) - ct + qi[1],
+          qi[2] - t
+        ];
+      }
+      return [
+        ct * t + qi[0],
+        st * t + qi[1],
+        qi[2]
+      ];
+    }
+
+    function pathSample(path, t) {
+      const tprime = t / path.rho;
+      const types = path.types;
+      const qi = [0, 0, path.qi[2]];
+      const p1 = path.param[0];
+      const p2 = path.param[1];
+      const q1 = dubinsSegment(qi, types[0], p1);
+      const q2 = dubinsSegment(q1, types[1], p2);
+      let q;
+      if (tprime < p1) {
+        q = dubinsSegment(qi, types[0], tprime);
+      } else if (tprime < p1 + p2) {
+        q = dubinsSegment(q1, types[1], tprime - p1);
+      } else {
+        q = dubinsSegment(q2, types[2], tprime - p1 - p2);
+      }
+      return [
+        q[0] * path.rho + path.qi[0],
+        q[1] * path.rho + path.qi[1],
+        mod2pi(q[2])
+      ];
+    }
+
+    function buildPath(q0, q1, rho, typeKey, params, types) {
+      const total = (params[0] + params[1] + params[2]) * rho;
+      return {
+        typeKey,
+        param: params,
+        types,
+        qi: q0,
+        rho,
+        length: total
+      };
+    }
+
+    function computePaths(state) {
+      const q0 = [state.x1, state.y1, state.theta1];
+      const q1 = [state.x2, state.y2, state.theta2];
+      const inData = computeIntermediate(q0, q1, state.R);
+      const candidates = [
+        { key: 'LSL', solver: dubinsLSL, types: ['L', 'S', 'L'] },
+        { key: 'LSR', solver: dubinsLSR, types: ['L', 'S', 'R'] },
+        { key: 'RSL', solver: dubinsRSL, types: ['R', 'S', 'L'] },
+        { key: 'RSR', solver: dubinsRSR, types: ['R', 'S', 'R'] },
+        { key: 'RLR', solver: dubinsRLR, types: ['R', 'L', 'R'] },
+        { key: 'LRL', solver: dubinsLRL, types: ['L', 'R', 'L'] }
+      ];
+      return candidates
+        .map((candidate) => {
+          const params = candidate.solver(inData);
+          if (!params) return null;
+          return buildPath(q0, q1, state.R, candidate.key, params, candidate.types);
+        })
+        .filter(Boolean);
+    }
+
+    function drawArrow(x, y, theta, color, scale) {
+      const length = 1.2 * scale;
+      const head = 0.35 * scale;
+      const x2 = x + Math.cos(theta) * length;
+      const y2 = y + Math.sin(theta) * length;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - Math.cos(theta - Math.PI / 6) * head, y2 - Math.sin(theta - Math.PI / 6) * head);
+      ctx.lineTo(x2 - Math.cos(theta + Math.PI / 6) * head, y2 - Math.sin(theta + Math.PI / 6) * head);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawGrid(scale) {
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      const spacing = scale;
+      ctx.strokeStyle = '#d6dde8';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let x = width / 2 % spacing; x < width; x += spacing) {
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+      }
+      for (let y = height / 2 % spacing; y < height; y += spacing) {
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+      }
+      ctx.stroke();
+      ctx.strokeStyle = '#b0bac7';
+      ctx.beginPath();
+      ctx.moveTo(width / 2, 0);
+      ctx.lineTo(width / 2, height);
+      ctx.moveTo(0, height / 2);
+      ctx.lineTo(width, height / 2);
+      ctx.stroke();
+    }
+
+    function draw() {
+      resizeCanvas();
+      const state = getState();
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      ctx.clearRect(0, 0, width, height);
+      drawGrid(state.scale);
+
+      const paths = computePaths(state);
+      const sampleStep = Math.max(state.R / 15, 0.1);
+
+      const toCanvas = (x, y) => {
+        return [width / 2 + x * state.scale, height / 2 - y * state.scale];
+      };
+
+      paths.forEach((path, index) => {
+        const color = COLORS[index % COLORS.length];
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        const total = path.length;
+        for (let t = 0; t <= total; t += sampleStep) {
+          const [x, y] = pathSample(path, t);
+          const [cx, cy] = toCanvas(x, y);
+          if (t === 0) {
+            ctx.moveTo(cx, cy);
+          } else {
+            ctx.lineTo(cx, cy);
+          }
+        }
+        ctx.stroke();
+      });
+
+      const [sx, sy] = toCanvas(state.x1, state.y1);
+      const [gx, gy] = toCanvas(state.x2, state.y2);
+      ctx.fillStyle = '#1b3a57';
+      ctx.beginPath();
+      ctx.arc(sx, sy, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ef476f';
+      ctx.beginPath();
+      ctx.arc(gx, gy, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      drawArrow(sx, sy, -state.theta1, '#1b3a57', 8);
+      drawArrow(gx, gy, -state.theta2, '#ef476f', 8);
+
+      legend.innerHTML = '';
+      if (paths.length === 0) {
+        const empty = document.createElement('div');
+        empty.textContent = '有効なDubins Pathがありません';
+        legend.appendChild(empty);
+        return;
+      }
+      paths.forEach((path, index) => {
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        const swatch = document.createElement('div');
+        swatch.className = 'legend-color';
+        swatch.style.background = COLORS[index % COLORS.length];
+        const label = document.createElement('span');
+        label.textContent = `${path.typeKey} (長さ: ${path.length.toFixed(2)})`;
+        item.appendChild(swatch);
+        item.appendChild(label);
+        legend.appendChild(item);
+      });
+    }
+
+    inputs.forEach((input) => {
+      input.addEventListener('input', draw);
+    });
+
+    window.addEventListener('resize', draw);
+    draw();
+  </script>
+</body>
+</html>
