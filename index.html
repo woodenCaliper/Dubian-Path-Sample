@@ -178,7 +178,8 @@
         入力を変更すると自動的にDubins Pathを再計算します。<br />
         角度は度数法で入力してください。<br />
         一覧のパスをクリックすると、該当パスを強調表示します。<br />
-        ビュアーは左クリックのドラッグで視点を移動できます。
+        ビュアーは左クリックのドラッグで視点を移動できます。<br />
+        マウスホイールで拡大縮小率を変更できます。
       </p>
     </section>
 
@@ -578,6 +579,27 @@
       isPanning = false;
       canvas.style.cursor = 'default';
     });
+
+    canvas.addEventListener('wheel', (event) => {
+      event.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const cursorX = event.clientX - rect.left;
+      const cursorY = event.clientY - rect.top;
+      const currentScale = Number(document.getElementById('scale').value);
+      const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9;
+      const nextScale = Math.min(200, Math.max(5, currentScale * zoomFactor));
+      if (nextScale === currentScale) return;
+
+      const worldX = (cursorX - (canvas.clientWidth / 2 + viewOffset.x)) / currentScale;
+      const worldY = ((canvas.clientHeight / 2 + viewOffset.y) - cursorY) / currentScale;
+      viewOffset = {
+        x: cursorX - canvas.clientWidth / 2 - worldX * nextScale,
+        y: cursorY - canvas.clientHeight / 2 + worldY * nextScale
+      };
+
+      document.getElementById('scale').value = nextScale.toFixed(0);
+      draw();
+    }, { passive: false });
 
     window.addEventListener('resize', draw);
     draw();
