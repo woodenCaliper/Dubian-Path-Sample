@@ -468,30 +468,32 @@
         ];
       };
 
-      const highlightIndex = paths.findIndex((path) => path.typeKey === highlightedPathKey);
       const shortestPathKey = paths.reduce((shortest, current) => {
         if (!shortest || current.length < shortest.length) {
           return current;
         }
         return shortest;
       }, null)?.typeKey ?? null;
-      const orderedPaths = [...paths];
-      if (highlightIndex >= 0) {
-        const [selected] = orderedPaths.splice(highlightIndex, 1);
-        orderedPaths.push(selected);
+      const orderedPaths = paths.filter((path) => path.typeKey !== highlightedPathKey && path.typeKey !== shortestPathKey);
+      if (highlightedPathKey && highlightedPathKey !== shortestPathKey) {
+        const selectedPath = paths.find((path) => path.typeKey === highlightedPathKey);
+        if (selectedPath) {
+          orderedPaths.push(selectedPath);
+        }
+      }
+      if (shortestPathKey) {
+        const shortestPath = paths.find((path) => path.typeKey === shortestPathKey);
+        if (shortestPath) {
+          orderedPaths.push(shortestPath);
+        }
       }
 
       orderedPaths.forEach((path, index) => {
         const color = colorForKey(path.typeKey);
-        const isSelected = path.typeKey === highlightedPathKey;
         const isShortest = path.typeKey === shortestPathKey;
         ctx.strokeStyle = color;
         ctx.lineWidth = isShortest ? 5 : 2.5;
-        if (isSelected) {
-          ctx.setLineDash([10, 8]);
-        } else {
-          ctx.setLineDash([]);
-        }
+        ctx.setLineDash([]);
         ctx.beginPath();
         const total = path.length;
         for (let t = 0; t <= total; t += sampleStep) {
