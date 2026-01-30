@@ -181,6 +181,12 @@
         <input id="scale" type="number" step="1" value="40" min="5" />
       </div>
 
+      <h2>表示オプション</h2>
+      <div class="field">
+        <label for="shortestOnly">最短のみ表示</label>
+        <input id="shortestOnly" type="checkbox" />
+      </div>
+
       <h2>生成パス一覧</h2>
       <div id="path-list" class="path-list"></div>
 
@@ -200,7 +206,8 @@
   </main>
 
   <script>
-    const inputs = Array.from(document.querySelectorAll('input'));
+    const inputs = Array.from(document.querySelectorAll('input[type="number"]'));
+    const shortestOnlyInput = document.getElementById('shortestOnly');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     const legend = document.getElementById('legend');
@@ -255,7 +262,8 @@
         y2: values.y2 / 100,
         theta2: toRad(values.theta2),
         R: Math.max(values.radius / 100, 0.01),
-        scale: Math.max(values.scale, 1)
+        scale: Math.max(values.scale, 1),
+        shortestOnly: shortestOnlyInput?.checked ?? false
       };
     }
 
@@ -484,17 +492,25 @@
         }
         return shortest;
       }, null)?.typeKey ?? null;
-      const orderedPaths = paths.filter((path) => path.typeKey !== highlightedPathKey && path.typeKey !== shortestPathKey);
-      if (highlightedPathKey && highlightedPathKey !== shortestPathKey) {
-        const selectedPath = paths.find((path) => path.typeKey === highlightedPathKey);
-        if (selectedPath) {
-          orderedPaths.push(selectedPath);
-        }
-      }
-      if (shortestPathKey) {
+      let orderedPaths = [];
+      if (state.shortestOnly) {
         const shortestPath = paths.find((path) => path.typeKey === shortestPathKey);
         if (shortestPath) {
-          orderedPaths.push(shortestPath);
+          orderedPaths = [shortestPath];
+        }
+      } else {
+        orderedPaths = paths.filter((path) => path.typeKey !== highlightedPathKey && path.typeKey !== shortestPathKey);
+        if (highlightedPathKey && highlightedPathKey !== shortestPathKey) {
+          const selectedPath = paths.find((path) => path.typeKey === highlightedPathKey);
+          if (selectedPath) {
+            orderedPaths.push(selectedPath);
+          }
+        }
+        if (shortestPathKey) {
+          const shortestPath = paths.find((path) => path.typeKey === shortestPathKey);
+          if (shortestPath) {
+            orderedPaths.push(shortestPath);
+          }
         }
       }
 
@@ -578,6 +594,9 @@
     inputs.forEach((input) => {
       input.addEventListener('input', draw);
     });
+    if (shortestOnlyInput) {
+      shortestOnlyInput.addEventListener('change', draw);
+    }
 
     canvas.addEventListener('mousedown', (event) => {
       if (event.button !== 0) return;
