@@ -433,7 +433,7 @@
     function drawGrid(scale) {
       const width = canvas.clientWidth;
       const height = canvas.clientHeight;
-      const spacing = scale;
+      const spacing = scale * 100;
       const originX = width / 2 + viewOffset.x;
       const originY = height / 2 + viewOffset.y;
       ctx.strokeStyle = '#d6dde8';
