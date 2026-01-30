@@ -248,13 +248,13 @@
         values[input.id] = Number(input.value);
       });
       return {
-        x1: values.x1,
-        y1: values.y1,
+        x1: values.x1 / 100,
+        y1: values.y1 / 100,
         theta1: toRad(values.theta1),
-        x2: values.x2,
-        y2: values.y2,
+        x2: values.x2 / 100,
+        y2: values.y2 / 100,
         theta2: toRad(values.theta2),
-        R: Math.max(values.radius, 0.01),
+        R: Math.max(values.radius / 100, 0.01),
         scale: Math.max(values.scale, 1)
       };
     }
@@ -433,7 +433,7 @@
     function drawGrid(scale) {
       const width = canvas.clientWidth;
       const height = canvas.clientHeight;
-      const spacing = scale * 100;
+      const spacing = scale;
       const originX = width / 2 + viewOffset.x;
       const originY = height / 2 + viewOffset.y;
       ctx.strokeStyle = '#d6dde8';
