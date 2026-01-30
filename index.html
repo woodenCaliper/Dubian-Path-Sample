@@ -133,36 +133,46 @@
     <section class="panel">
       <h2>Start Pose</h2>
       <div class="field">
-        <label for="x1">x1</label>
+        <label for="x1">x1 [mm]</label>
         <input id="x1" type="number" step="0.1" value="0" />
       </div>
       <div class="field">
-        <label for="y1">y1</label>
+        <label for="y1">y1 [mm]</label>
         <input id="y1" type="number" step="0.1" value="0" />
       </div>
       <div class="field">
-        <label for="theta1">θ1 (deg)</label>
+        <label for="theta1">θ1 [deg]</label>
         <input id="theta1" type="number" step="1" value="0" />
       </div>
 
       <h2>Goal Pose</h2>
       <div class="field">
-        <label for="x2">x2</label>
+        <label for="x2">x2 [mm]</label>
         <input id="x2" type="number" step="0.1" value="8" />
       </div>
       <div class="field">
-        <label for="y2">y2</label>
+        <label for="y2">y2 [mm]</label>
         <input id="y2" type="number" step="0.1" value="5" />
       </div>
       <div class="field">
-        <label for="theta2">θ2 (deg)</label>
+        <label for="theta2">θ2 [deg]</label>
         <input id="theta2" type="number" step="1" value="90" />
       </div>
 
       <h2>Limited Parameter</h2>
       <div class="field">
-        <label for="radius">R (最小旋回半径)</label>
+        <label for="radius">R [mm] (最小旋回半径)</label>
         <input id="radius" type="number" step="0.1" value="2" min="0.1" />
+      </div>
+
+      <h2>Vehicle Parameter</h2>
+      <div class="field">
+        <label for="maxSpeed">最大車速 [m/s]</label>
+        <input id="maxSpeed" type="number" step="0.1" value="10" min="0" />
+      </div>
+      <div class="field">
+        <label for="acceleration">加減速度 [m/s]</label>
+        <input id="acceleration" type="number" step="0.1" value="1" min="0" />
       </div>
 
       <h2>Viewer</h2>
