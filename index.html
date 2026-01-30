@@ -178,7 +178,7 @@
       <h2>Viewer</h2>
       <div class="field">
         <label for="scale">拡大縮小率 (px / unit)</label>
-        <input id="scale" type="number" step="1" value="40" min="5" />
+        <input id="scale" type="number" step="1" value="40" min="1" />
       </div>
 
       <h2>表示オプション</h2>
@@ -630,7 +630,7 @@
       const cursorY = event.clientY - rect.top;
       const currentScale = Number(document.getElementById('scale').value);
       const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9;
-      const nextScale = Math.min(200, Math.max(5, currentScale * zoomFactor));
+      const nextScale = Math.min(200, Math.max(1, currentScale * zoomFactor));
       if (nextScale === currentScale) return;
 
       const worldX = (cursorX - (canvas.clientWidth / 2 + viewOffset.x)) / currentScale;
