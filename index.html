@@ -133,42 +133,58 @@
     <section class="panel">
       <h2>Start Pose</h2>
       <div class="field">
-        <label for="x1">x1</label>
-        <input id="x1" type="number" step="0.1" value="0" />
+        <label for="x1">x1 [mm]</label>
+        <input id="x1" type="number" step="100" value="0" />
       </div>
       <div class="field">
-        <label for="y1">y1</label>
-        <input id="y1" type="number" step="0.1" value="0" />
+        <label for="y1">y1 [mm]</label>
+        <input id="y1" type="number" step="100" value="0" />
       </div>
       <div class="field">
-        <label for="theta1">θ1 (deg)</label>
-        <input id="theta1" type="number" step="1" value="0" />
+        <label for="theta1">θ1 [deg]</label>
+        <input id="theta1" type="number" step="15" value="0" />
       </div>
 
       <h2>Goal Pose</h2>
       <div class="field">
-        <label for="x2">x2</label>
-        <input id="x2" type="number" step="0.1" value="8" />
+        <label for="x2">x2 [mm]</label>
+        <input id="x2" type="number" step="100" value="3000" />
       </div>
       <div class="field">
-        <label for="y2">y2</label>
-        <input id="y2" type="number" step="0.1" value="5" />
+        <label for="y2">y2 [mm]</label>
+        <input id="y2" type="number" step="100" value="3000" />
       </div>
       <div class="field">
-        <label for="theta2">θ2 (deg)</label>
-        <input id="theta2" type="number" step="1" value="90" />
+        <label for="theta2">θ2 [deg]</label>
+        <input id="theta2" type="number" step="15" value="90" />
       </div>
 
       <h2>Limited Parameter</h2>
       <div class="field">
-        <label for="radius">R (最小旋回半径)</label>
-        <input id="radius" type="number" step="0.1" value="2" min="0.1" />
+        <label for="radius">R [mm] (最小旋回半径)</label>
+        <input id="radius" type="number" step="100" value="1500" min="0.1" />
+      </div>
+
+      <h2>Vehicle Parameter</h2>
+      <div class="field">
+        <label for="maxSpeed">最大車速 [m/s]</label>
+        <input id="maxSpeed" type="number" step="0.1" value="10" min="0" />
+      </div>
+      <div class="field">
+        <label for="acceleration">加減速度 [m/s]</label>
+        <input id="acceleration" type="number" step="0.1" value="1" min="0" />
       </div>
 
       <h2>Viewer</h2>
       <div class="field">
-        <label for="scale">拡大縮小率 (px / unit)</label>
-        <input id="scale" type="number" step="1" value="40" min="5" />
+        <label for="scale">拡大縮小率 (px / 100mm)</label>
+        <input id="scale" type="number" step="0.1" value="40" min="1" />
+      </div>
+
+      <h2>表示オプション</h2>
+      <div class="field">
+        <label for="shortestOnly">最短のみ表示</label>
+        <input id="shortestOnly" type="checkbox" />
       </div>
 
       <h2>生成パス一覧</h2>
@@ -190,7 +206,8 @@
   </main>
 
   <script>
-    const inputs = Array.from(document.querySelectorAll('input'));
+    const inputs = Array.from(document.querySelectorAll('input[type="number"]'));
+    const shortestOnlyInput = document.getElementById('shortestOnly');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     const legend = document.getElementById('legend');
@@ -238,14 +255,15 @@
         values[input.id] = Number(input.value);
       });
       return {
-        x1: values.x1,
-        y1: values.y1,
+        x1: values.x1 / 100,
+        y1: values.y1 / 100,
         theta1: toRad(values.theta1),
-        x2: values.x2,
-        y2: values.y2,
+        x2: values.x2 / 100,
+        y2: values.y2 / 100,
         theta2: toRad(values.theta2),
-        R: Math.max(values.radius, 0.01),
-        scale: Math.max(values.scale, 1)
+        R: Math.max(values.radius / 100, 0.01),
+        scale: Math.max(values.scale, 1),
+        shortestOnly: shortestOnlyInput?.checked ?? false
       };
     }
 
@@ -474,17 +492,25 @@
         }
         return shortest;
       }, null)?.typeKey ?? null;
-      const orderedPaths = paths.filter((path) => path.typeKey !== highlightedPathKey && path.typeKey !== shortestPathKey);
-      if (highlightedPathKey && highlightedPathKey !== shortestPathKey) {
-        const selectedPath = paths.find((path) => path.typeKey === highlightedPathKey);
-        if (selectedPath) {
-          orderedPaths.push(selectedPath);
-        }
-      }
-      if (shortestPathKey) {
+      let orderedPaths = [];
+      if (state.shortestOnly) {
         const shortestPath = paths.find((path) => path.typeKey === shortestPathKey);
         if (shortestPath) {
-          orderedPaths.push(shortestPath);
+          orderedPaths = [shortestPath];
+        }
+      } else {
+        orderedPaths = paths.filter((path) => path.typeKey !== highlightedPathKey && path.typeKey !== shortestPathKey);
+        if (highlightedPathKey && highlightedPathKey !== shortestPathKey) {
+          const selectedPath = paths.find((path) => path.typeKey === highlightedPathKey);
+          if (selectedPath) {
+            orderedPaths.push(selectedPath);
+          }
+        }
+        if (shortestPathKey) {
+          const shortestPath = paths.find((path) => path.typeKey === shortestPathKey);
+          if (shortestPath) {
+            orderedPaths.push(shortestPath);
+          }
         }
       }
 
@@ -568,6 +594,9 @@
     inputs.forEach((input) => {
       input.addEventListener('input', draw);
     });
+    if (shortestOnlyInput) {
+      shortestOnlyInput.addEventListener('change', draw);
+    }
 
     canvas.addEventListener('mousedown', (event) => {
       if (event.button !== 0) return;
@@ -599,9 +628,9 @@
       const rect = canvas.getBoundingClientRect();
       const cursorX = event.clientX - rect.left;
       const cursorY = event.clientY - rect.top;
-      const currentScale = Number(document.getElementById('scale').value);
+      const currentScale = Number.parseFloat(document.getElementById('scale').value);
       const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9;
-      const nextScale = Math.min(200, Math.max(5, currentScale * zoomFactor));
+      const nextScale = Math.min(200, Math.max(1, currentScale * zoomFactor));
       if (nextScale === currentScale) return;
 
       const worldX = (cursorX - (canvas.clientWidth / 2 + viewOffset.x)) / currentScale;
@@ -611,7 +640,7 @@
         y: cursorY - canvas.clientHeight / 2 + worldY * nextScale
       };
 
-      document.getElementById('scale').value = nextScale.toFixed(0);
+      document.getElementById('scale').value = nextScale.toFixed(1);
       draw();
     }, { passive: false });
 
