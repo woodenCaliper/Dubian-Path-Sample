@@ -467,6 +467,17 @@
       ctx.stroke();
     }
 
+    function computeMaxReachableSpeed(totalLength, maxSpeed, acceleration) {
+      if (totalLength <= 0 || maxSpeed <= 0 || acceleration <= 0) {
+        return 0;
+      }
+      const accelDistance = (maxSpeed * maxSpeed) / (2 * acceleration);
+      if (2 * accelDistance >= totalLength) {
+        return Math.sqrt(totalLength * acceleration);
+      }
+      return maxSpeed;
+    }
+
     function computeSpeedAt(distance, totalLength, maxSpeed, acceleration) {
       if (totalLength <= 0 || maxSpeed <= 0 || acceleration <= 0) {
         return 0;
@@ -550,13 +561,18 @@
         const total = path.length;
         const minWidth = isShortest ? 1.6 : 1.2;
         const maxWidth = minWidth * 10;
+        const reachableMaxSpeed = computeMaxReachableSpeed(
+          total,
+          state.maxSpeed,
+          state.acceleration
+        );
         let previousPoint = null;
         for (let t = 0; t <= total; t += sampleStep) {
           const [x, y] = pathSample(path, t);
           const [cx, cy] = toCanvas(x, y);
           if (previousPoint) {
             const speed = computeSpeedAt(t, total, state.maxSpeed, state.acceleration);
-            ctx.lineWidth = lineWidthForSpeed(speed, state.maxSpeed, minWidth, maxWidth);
+            ctx.lineWidth = lineWidthForSpeed(speed, reachableMaxSpeed, minWidth, maxWidth);
             ctx.strokeStyle = color;
             ctx.beginPath();
             ctx.moveTo(previousPoint[0], previousPoint[1]);
