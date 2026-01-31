@@ -262,6 +262,8 @@
         y2: values.y2 / 100,
         theta2: toRad(values.theta2),
         R: Math.max(values.radius / 100, 0.01),
+        maxSpeed: Math.max(values.maxSpeed, 0),
+        acceleration: Math.max(values.acceleration, 0),
         scale: Math.max(values.scale, 1),
         shortestOnly: shortestOnlyInput?.checked ?? false
       };
@@ -465,6 +467,33 @@
       ctx.stroke();
     }
 
+    function computeSpeedAt(distance, totalLength, maxSpeed, acceleration) {
+      if (totalLength <= 0 || maxSpeed <= 0 || acceleration <= 0) {
+        return 0;
+      }
+      const accelDistance = (maxSpeed * maxSpeed) / (2 * acceleration);
+      if (2 * accelDistance >= totalLength) {
+        const half = totalLength / 2;
+        if (distance <= half) {
+          return Math.sqrt(2 * acceleration * distance);
+        }
+        return Math.sqrt(2 * acceleration * (totalLength - distance));
+      }
+      if (distance < accelDistance) {
+        return Math.sqrt(2 * acceleration * distance);
+      }
+      if (distance > totalLength - accelDistance) {
+        return Math.sqrt(2 * acceleration * (totalLength - distance));
+      }
+      return maxSpeed;
+    }
+
+    function lineWidthForSpeed(speed, maxSpeed, minWidth, maxWidth) {
+      if (maxSpeed <= 0) return minWidth;
+      const ratio = Math.min(speed / maxSpeed, 1);
+      return minWidth + (maxWidth - minWidth) * ratio;
+    }
+
     function draw() {
       resizeCanvas();
       const state = getState();
@@ -517,21 +546,25 @@
       orderedPaths.forEach((path, index) => {
         const color = colorForKey(path.typeKey);
         const isShortest = path.typeKey === shortestPathKey;
-        ctx.strokeStyle = color;
-        ctx.lineWidth = isShortest ? 5 : 2.5;
         ctx.setLineDash([]);
-        ctx.beginPath();
         const total = path.length;
+        const minWidth = isShortest ? 2.4 : 1.4;
+        const maxWidth = isShortest ? 6 : 4.2;
+        let previousPoint = null;
         for (let t = 0; t <= total; t += sampleStep) {
           const [x, y] = pathSample(path, t);
           const [cx, cy] = toCanvas(x, y);
-          if (t === 0) {
-            ctx.moveTo(cx, cy);
-          } else {
+          if (previousPoint) {
+            const speed = computeSpeedAt(t, total, state.maxSpeed, state.acceleration);
+            ctx.lineWidth = lineWidthForSpeed(speed, state.maxSpeed, minWidth, maxWidth);
+            ctx.strokeStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(previousPoint[0], previousPoint[1]);
             ctx.lineTo(cx, cy);
+            ctx.stroke();
           }
+          previousPoint = [cx, cy];
         }
-        ctx.stroke();
       });
 
       const [sx, sy] = toCanvas(state.x1, state.y1);
