@@ -263,7 +263,7 @@
         theta2: toRad(values.theta2),
         R: Math.max(values.radius / 100, 0.01),
         maxSpeed: Math.max(values.maxSpeed, 0),
-        acceleration: Math.max(values.acceleration, 0),
+        acceleration: Math.max(values.acceleration, 0.01),
         scale: Math.max(values.scale, 1),
         shortestOnly: shortestOnlyInput?.checked ?? false
       };
