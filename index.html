@@ -548,8 +548,8 @@
         const isShortest = path.typeKey === shortestPathKey;
         ctx.setLineDash([]);
         const total = path.length;
-        const minWidth = isShortest ? 2.4 : 1.4;
-        const maxWidth = isShortest ? 6 : 4.2;
+        const minWidth = isShortest ? 1.6 : 1.2;
+        const maxWidth = minWidth * 5;
         let previousPoint = null;
         for (let t = 0; t <= total; t += sampleStep) {
           const [x, y] = pathSample(path, t);
