@@ -171,8 +171,8 @@
         <input id="maxSpeed" type="number" step="0.1" value="10" min="0" />
       </div>
       <div class="field">
-        <label for="acceleration">加減速度 [m/s]</label>
-        <input id="acceleration" type="number" step="0.1" value="1" min="0" />
+        <label for="acceleration">加減速度 [m/s] (0.01以上)</label>
+        <input id="acceleration" type="number" step="0.1" value="1" min="0.01" />
       </div>
 
       <h2>Viewer</h2>
@@ -262,6 +262,8 @@
         y2: values.y2 / 100,
         theta2: toRad(values.theta2),
         R: Math.max(values.radius / 100, 0.01),
+        maxSpeed: Math.max(values.maxSpeed, 0),
+        acceleration: Math.max(values.acceleration, 0.01),
         scale: Math.max(values.scale, 1),
         shortestOnly: shortestOnlyInput?.checked ?? false
       };
@@ -442,6 +444,7 @@
       const width = canvas.clientWidth;
       const height = canvas.clientHeight;
       const spacing = scale;
+      const majorSpacing = spacing * 10;
       const originX = width / 2 + viewOffset.x;
       const originY = height / 2 + viewOffset.y;
       ctx.strokeStyle = '#d6dde8';
@@ -456,6 +459,18 @@
         ctx.lineTo(width, y);
       }
       ctx.stroke();
+      ctx.strokeStyle = '#c4ccd9';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      for (let x = ((originX % majorSpacing) + majorSpacing) % majorSpacing; x < width; x += majorSpacing) {
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+      }
+      for (let y = ((originY % majorSpacing) + majorSpacing) % majorSpacing; y < height; y += majorSpacing) {
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+      }
+      ctx.stroke();
       ctx.strokeStyle = '#b0bac7';
       ctx.beginPath();
       ctx.moveTo(originX, 0);
@@ -463,6 +478,33 @@
       ctx.moveTo(0, originY);
       ctx.lineTo(width, originY);
       ctx.stroke();
+    }
+
+    function computeSpeedAt(distance, totalLength, maxSpeed, acceleration) {
+      if (totalLength <= 0 || maxSpeed <= 0 || acceleration <= 0) {
+        return 0;
+      }
+      const accelDistance = (maxSpeed * maxSpeed) / (2 * acceleration);
+      if (2 * accelDistance >= totalLength) {
+        const half = totalLength / 2;
+        if (distance <= half) {
+          return Math.sqrt(2 * acceleration * distance);
+        }
+        return Math.sqrt(2 * acceleration * (totalLength - distance));
+      }
+      if (distance < accelDistance) {
+        return Math.sqrt(2 * acceleration * distance);
+      }
+      if (distance > totalLength - accelDistance) {
+        return Math.sqrt(2 * acceleration * (totalLength - distance));
+      }
+      return maxSpeed;
+    }
+
+    function lineWidthForSpeed(speed, maxSpeed, minWidth, maxWidth) {
+      if (maxSpeed <= 0) return minWidth;
+      const ratio = Math.min(speed / maxSpeed, 1);
+      return minWidth + (maxWidth - minWidth) * ratio;
     }
 
     function draw() {
@@ -517,21 +559,26 @@
       orderedPaths.forEach((path, index) => {
         const color = colorForKey(path.typeKey);
         const isShortest = path.typeKey === shortestPathKey;
-        ctx.strokeStyle = color;
-        ctx.lineWidth = isShortest ? 5 : 2.5;
         ctx.setLineDash([]);
-        ctx.beginPath();
         const total = path.length;
-        for (let t = 0; t <= total; t += sampleStep) {
-          const [x, y] = pathSample(path, t);
-          const [cx, cy] = toCanvas(x, y);
-          if (t === 0) {
-            ctx.moveTo(cx, cy);
-          } else {
-            ctx.lineTo(cx, cy);
+        const minWidth = isShortest ? 1.6 : 1.2;
+        const maxWidth = minWidth * 10;
+        if (total > 0) {
+          for (let t = 0; t < total; t += sampleStep) {
+            const nextT = Math.min(t + sampleStep, total);
+            const [x1, y1] = pathSample(path, t);
+            const [x2, y2] = pathSample(path, nextT);
+            const [cx1, cy1] = toCanvas(x1, y1);
+            const [cx2, cy2] = toCanvas(x2, y2);
+            const speed = computeSpeedAt(nextT, total, state.maxSpeed, state.acceleration);
+            ctx.lineWidth = lineWidthForSpeed(speed, state.maxSpeed, minWidth, maxWidth);
+            ctx.strokeStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(cx1, cy1);
+            ctx.lineTo(cx2, cy2);
+            ctx.stroke();
           }
         }
-        ctx.stroke();
       });
 
       const [sx, sy] = toCanvas(state.x1, state.y1);
