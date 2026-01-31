@@ -550,20 +550,21 @@
         const total = path.length;
         const minWidth = isShortest ? 1.6 : 1.2;
         const maxWidth = minWidth * 10;
-        let previousPoint = null;
-        for (let t = 0; t <= total; t += sampleStep) {
-          const [x, y] = pathSample(path, t);
-          const [cx, cy] = toCanvas(x, y);
-          if (previousPoint) {
-            const speed = computeSpeedAt(t, total, state.maxSpeed, state.acceleration);
+        if (total > 0) {
+          for (let t = 0; t < total; t += sampleStep) {
+            const nextT = Math.min(t + sampleStep, total);
+            const [x1, y1] = pathSample(path, t);
+            const [x2, y2] = pathSample(path, nextT);
+            const [cx1, cy1] = toCanvas(x1, y1);
+            const [cx2, cy2] = toCanvas(x2, y2);
+            const speed = computeSpeedAt(nextT, total, state.maxSpeed, state.acceleration);
             ctx.lineWidth = lineWidthForSpeed(speed, state.maxSpeed, minWidth, maxWidth);
             ctx.strokeStyle = color;
             ctx.beginPath();
-            ctx.moveTo(previousPoint[0], previousPoint[1]);
-            ctx.lineTo(cx, cy);
+            ctx.moveTo(cx1, cy1);
+            ctx.lineTo(cx2, cy2);
             ctx.stroke();
           }
-          previousPoint = [cx, cy];
         }
       });
 
