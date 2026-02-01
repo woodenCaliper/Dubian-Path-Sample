@@ -43,6 +43,14 @@
       flex-direction: column;
       gap: 4px;
     }
+    .field.inline {
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+    }
+    .field.inline label {
+      margin: 0;
+    }
     .field label {
       font-size: 12px;
       color: #4e5d6c;
@@ -182,7 +190,7 @@
       </div>
 
       <h2>表示オプション</h2>
-      <div class="field">
+      <div class="field inline">
         <label for="shortestOnly">最短のみ表示</label>
         <input id="shortestOnly" type="checkbox" />
       </div>
