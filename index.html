@@ -193,6 +193,10 @@
         <label for="acceleration">加減速度 [m/s] (0.01以上)</label>
         <input id="acceleration" type="number" step="0.1" value="1" min="0.01" />
       </div>
+      <div class="field">
+        <label for="radiusSpeedProduct">許容可能な半径と速度の積 [m/s*m]</label>
+        <input id="radiusSpeedProduct" type="number" step="0.1" value="0" min="0" />
+      </div>
 
       <h2>Viewer</h2>
       <div class="field">
@@ -286,6 +290,7 @@
         R: Math.max(values.radius / 100, 0.01),
         maxSpeed: Math.max(values.maxSpeed, 0),
         acceleration: Math.max(values.acceleration, 0.01),
+        radiusSpeedProduct: Math.max(values.radiusSpeedProduct, 0),
         scale: Math.max(values.scale, 1),
         shortestOnly: shortestOnlyInput?.checked ?? false
       };
