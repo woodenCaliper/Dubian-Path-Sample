@@ -590,7 +590,7 @@
       drawGrid(state.scale);
 
       const paths = computePaths(state);
-      const sampleStep = Math.max(state.R / 15, 0.1);
+      const sampleStep = Math.max(state.R / 15, 0.01);
       if (paths.length > 0 && !paths.some((path) => path.typeKey === highlightedPathKey)) {
         highlightedPathKey = paths[0].typeKey;
       }
