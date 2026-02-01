@@ -227,6 +227,7 @@
 
   <script>
     const inputs = Array.from(document.querySelectorAll('input[type="number"]'));
+    const angleInputs = ['theta1', 'theta2'].map((id) => document.getElementById(id));
     const shortestOnlyInput = document.getElementById('shortestOnly');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
@@ -699,6 +700,18 @@
 
     inputs.forEach((input) => {
       input.addEventListener('input', draw);
+    });
+    angleInputs.forEach((input) => {
+      if (!input) return;
+      input.addEventListener('input', () => {
+        const value = Number(input.value);
+        if (!Number.isFinite(value)) return;
+        const normalized = ((value % 360) + 360) % 360;
+        if (value !== normalized) {
+          input.value = normalized;
+          draw();
+        }
+      });
     });
     if (shortestOnlyInput) {
       shortestOnlyInput.addEventListener('change', draw);
