@@ -144,6 +144,17 @@
     .path-compare.mismatch {
       color: #c62828;
     }
+    .rv-status {
+      margin-top: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .rv-status.ok {
+      color: #1f7a3a;
+    }
+    .rv-status.ng {
+      color: #c62828;
+    }
   </style>
 </head>
 <body>
@@ -210,6 +221,7 @@
         <input id="shortestOnly" type="checkbox" />
       </div>
       <div id="path-compare" class="path-compare"></div>
+      <div id="rv-status" class="rv-status"></div>
 
       <h2>生成パス一覧</h2>
       <div id="path-list" class="path-list"></div>
@@ -238,6 +250,7 @@
     const legend = document.getElementById('legend');
     const pathList = document.getElementById('path-list');
     const pathCompare = document.getElementById('path-compare');
+    const rvStatus = document.getElementById('rv-status');
     let highlightedPathKey = null;
     let viewOffset = { x: 0, y: 0 };
     let isPanning = false;
@@ -673,6 +686,10 @@
         pathCompare.textContent = '';
         pathCompare.classList.remove('match', 'mismatch');
       }
+      if (rvStatus) {
+        rvStatus.textContent = '';
+        rvStatus.classList.remove('ok', 'ng');
+      }
       if (paths.length === 0) {
         const empty = document.createElement('div');
         empty.textContent = '有効なDubins Pathがありません';
@@ -689,6 +706,24 @@
         } else {
           pathCompare.textContent = '最短距離と最短時間のパスが不一致';
           pathCompare.classList.add('mismatch');
+        }
+      }
+      if (rvStatus) {
+        const maxRvInView = orderedPaths.reduce((maxValue, path) => {
+          const value = computeMaxRadiusSpeedProduct(
+            path,
+            state.maxSpeed,
+            state.acceleration,
+            sampleStep
+          );
+          return Math.max(maxValue, value);
+        }, 0);
+        if (maxRvInView > state.radiusSpeedProduct) {
+          rvStatus.textContent = '表示中のパスに、許容Rvを超えるものが表示されています';
+          rvStatus.classList.add('ng');
+        } else {
+          rvStatus.textContent = '表示中のパスは、すべて許容Rvいないです';
+          rvStatus.classList.add('ok');
         }
       }
       paths.forEach((path, index) => {
