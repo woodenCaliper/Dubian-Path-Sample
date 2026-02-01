@@ -547,6 +547,27 @@
       return minWidth + (maxWidth - minWidth) * ratio;
     }
 
+    function segmentTypeAt(path, t) {
+      const tprime = t / path.rho;
+      const p1 = path.param[0];
+      const p2 = path.param[1];
+      if (tprime < p1) return path.types[0];
+      if (tprime < p1 + p2) return path.types[1];
+      return path.types[2];
+    }
+
+    function computeMaxRadiusSpeedProduct(path, maxSpeed, acceleration, sampleStep) {
+      if (path.length <= 0) return 0;
+      let maxProduct = 0;
+      for (let t = 0; t <= path.length; t += sampleStep) {
+        const speed = computeSpeedAt(t, path.length, maxSpeed, acceleration);
+        const type = segmentTypeAt(path, t);
+        const radius = type === 'S' ? 0 : path.rho;
+        maxProduct = Math.max(maxProduct, radius * speed);
+      }
+      return maxProduct;
+    }
+
     function draw() {
       resizeCanvas();
       const state = getState();
@@ -672,6 +693,12 @@
       }
       paths.forEach((path, index) => {
         const travelTime = computeTravelTime(path.length, state.maxSpeed, state.acceleration);
+        const maxRadiusSpeedProduct = computeMaxRadiusSpeedProduct(
+          path,
+          state.maxSpeed,
+          state.acceleration,
+          sampleStep
+        );
         const item = document.createElement('div');
         item.className = 'legend-item';
         const swatch = document.createElement('div');
@@ -696,7 +723,7 @@
         listSwatch.className = 'path-swatch';
         listSwatch.style.background = colorForKey(path.typeKey);
         const listText = document.createElement('div');
-        listText.textContent = `${index + 1}. ${path.typeKey} / 色: ${colorForKey(path.typeKey)} / 長さ: ${path.length.toFixed(2)} / 時間: ${travelTime.toFixed(2)}s`;
+        listText.textContent = `${index + 1}. ${path.typeKey} / 色: ${colorForKey(path.typeKey)} / 長さ: ${path.length.toFixed(2)} / 時間: ${travelTime.toFixed(2)}s / 最大R*v: ${maxRadiusSpeedProduct.toFixed(2)}`;
         listItem.appendChild(listSwatch);
         listItem.appendChild(listText);
         pathList.appendChild(listItem);
