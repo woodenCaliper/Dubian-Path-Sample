@@ -133,6 +133,17 @@
     .legend-item:last-child {
       margin-bottom: 0;
     }
+    .path-compare {
+      margin-top: 8px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .path-compare.match {
+      color: #1f7a3a;
+    }
+    .path-compare.mismatch {
+      color: #c62828;
+    }
   </style>
 </head>
 <body>
@@ -194,6 +205,7 @@
         <label for="shortestOnly">最短のみ表示</label>
         <input id="shortestOnly" type="checkbox" />
       </div>
+      <div id="path-compare" class="path-compare"></div>
 
       <h2>生成パス一覧</h2>
       <div id="path-list" class="path-list"></div>
@@ -220,6 +232,7 @@
     const ctx = canvas.getContext('2d');
     const legend = document.getElementById('legend');
     const pathList = document.getElementById('path-list');
+    const pathCompare = document.getElementById('path-compare');
     let highlightedPathKey = null;
     let viewOffset = { x: 0, y: 0 };
     let isPanning = false;
@@ -555,6 +568,17 @@
         }
         return shortest;
       }, null)?.typeKey ?? null;
+      const shortestTimePathKey = paths.reduce((shortest, current) => {
+        if (!shortest) {
+          return current;
+        }
+        const currentTime = computeTravelTime(current.length, state.maxSpeed, state.acceleration);
+        const shortestTime = computeTravelTime(shortest.length, state.maxSpeed, state.acceleration);
+        if (currentTime < shortestTime) {
+          return current;
+        }
+        return shortest;
+      }, null)?.typeKey ?? null;
       let orderedPaths = [];
       if (state.shortestOnly) {
         const shortestPath = paths.find((path) => path.typeKey === shortestPathKey);
@@ -618,6 +642,10 @@
 
       legend.innerHTML = '';
       pathList.innerHTML = '';
+      if (pathCompare) {
+        pathCompare.textContent = '';
+        pathCompare.classList.remove('match', 'mismatch');
+      }
       if (paths.length === 0) {
         const empty = document.createElement('div');
         empty.textContent = '有効なDubins Pathがありません';
@@ -626,6 +654,15 @@
         emptyList.textContent = '有効なパスがありません';
         pathList.appendChild(emptyList);
         return;
+      }
+      if (pathCompare && shortestPathKey && shortestTimePathKey) {
+        if (shortestPathKey === shortestTimePathKey) {
+          pathCompare.textContent = '最短距離と最短時間のパスが一致';
+          pathCompare.classList.add('match');
+        } else {
+          pathCompare.textContent = '最短距離と最短時間のパスが不一致';
+          pathCompare.classList.add('mismatch');
+        }
       }
       paths.forEach((path, index) => {
         const travelTime = computeTravelTime(path.length, state.maxSpeed, state.acceleration);
