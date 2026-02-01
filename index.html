@@ -655,24 +655,24 @@
         const empty = document.createElement('div');
         empty.textContent = '表示するパスがありません';
         legend.appendChild(empty);
-        const emptyList = document.createElement('div');
-        emptyList.textContent = '表示するパスがありません';
-        pathList.appendChild(emptyList);
-        return;
+      } else {
+        orderedPaths.forEach((path, index) => {
+          const travelTime = computeTravelTime(path.length, state.maxSpeed, state.acceleration);
+          const item = document.createElement('div');
+          item.className = 'legend-item';
+          const swatch = document.createElement('div');
+          swatch.className = 'legend-color';
+          swatch.style.background = colorForKey(path.typeKey);
+          const label = document.createElement('span');
+          label.textContent = `${path.typeKey} (長さ: ${path.length.toFixed(2)})`;
+          item.appendChild(swatch);
+          item.appendChild(label);
+          legend.appendChild(item);
+        });
       }
-      orderedPaths.forEach((path, index) => {
-        const travelTime = computeTravelTime(path.length, state.maxSpeed, state.acceleration);
-        const item = document.createElement('div');
-        item.className = 'legend-item';
-        const swatch = document.createElement('div');
-        swatch.className = 'legend-color';
-        swatch.style.background = colorForKey(path.typeKey);
-        const label = document.createElement('span');
-        label.textContent = `${path.typeKey} (長さ: ${path.length.toFixed(2)})`;
-        item.appendChild(swatch);
-        item.appendChild(label);
-        legend.appendChild(item);
 
+      paths.forEach((path, index) => {
+        const travelTime = computeTravelTime(path.length, state.maxSpeed, state.acceleration);
         const listItem = document.createElement('div');
         listItem.className = 'path-item';
         if (path.typeKey === highlightedPathKey) {
