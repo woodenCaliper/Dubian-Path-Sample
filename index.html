@@ -43,6 +43,14 @@
       flex-direction: column;
       gap: 4px;
     }
+    .field.inline {
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+    }
+    .field.inline label {
+      margin: 0;
+    }
     .field label {
       font-size: 12px;
       color: #4e5d6c;
@@ -182,7 +190,7 @@
       </div>
 
       <h2>表示オプション</h2>
-      <div class="field">
+      <div class="field inline">
         <label for="shortestOnly">最短のみ表示</label>
         <input id="shortestOnly" type="checkbox" />
       </div>
@@ -218,12 +226,12 @@
     let panStart = { x: 0, y: 0 };
 
     const COLORS = [
-      '#1b9aaa',
-      '#ef476f',
-      '#ffc43d',
-      '#06d6a0',
-      '#118ab2',
-      '#8d5cf5'
+      '#e41a1c',
+      '#377eb8',
+      '#4daf4a',
+      '#984ea3',
+      '#ff7f00',
+      '#a65628'
     ];
     const PATH_ORDER = ['LSL', 'LSR', 'RSL', 'RSR', 'RLR', 'LRL'];
 
@@ -501,6 +509,19 @@
       return maxSpeed;
     }
 
+    function computeTravelTime(totalLength, maxSpeed, acceleration) {
+      if (totalLength <= 0 || maxSpeed <= 0 || acceleration <= 0) {
+        return 0;
+      }
+      const lengthMeters = totalLength * 0.1;
+      const accelDistance = (maxSpeed * maxSpeed) / (2 * acceleration);
+      if (2 * accelDistance >= lengthMeters) {
+        return 2 * Math.sqrt(lengthMeters / acceleration);
+      }
+      const cruiseDistance = Math.max(lengthMeters - 2 * accelDistance, 0);
+      return 2 * (maxSpeed / acceleration) + cruiseDistance / maxSpeed;
+    }
+
     function lineWidthForSpeed(speed, maxSpeed, minWidth, maxWidth) {
       if (maxSpeed <= 0) return minWidth;
       const ratio = Math.min(speed / maxSpeed, 1);
@@ -607,6 +628,7 @@
         return;
       }
       paths.forEach((path, index) => {
+        const travelTime = computeTravelTime(path.length, state.maxSpeed, state.acceleration);
         const item = document.createElement('div');
         item.className = 'legend-item';
         const swatch = document.createElement('div');
@@ -631,7 +653,7 @@
         listSwatch.className = 'path-swatch';
         listSwatch.style.background = colorForKey(path.typeKey);
         const listText = document.createElement('div');
-        listText.textContent = `${index + 1}. ${path.typeKey} / 色: ${colorForKey(path.typeKey)} / 長さ: ${path.length.toFixed(2)}`;
+        listText.textContent = `${index + 1}. ${path.typeKey} / 色: ${colorForKey(path.typeKey)} / 長さ: ${path.length.toFixed(2)} / 時間: ${travelTime.toFixed(2)}s`;
         listItem.appendChild(listSwatch);
         listItem.appendChild(listText);
         pathList.appendChild(listItem);
