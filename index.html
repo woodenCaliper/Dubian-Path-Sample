@@ -221,6 +221,7 @@
   <script>
     const inputs = Array.from(document.querySelectorAll('input[type="number"]'));
     const shortestOnlyInput = document.getElementById('shortestOnly');
+    const shortestTimeOnlyInput = document.getElementById('shortestTimeOnly');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     const legend = document.getElementById('legend');
@@ -278,7 +279,8 @@
         maxSpeed: Math.max(values.maxSpeed, 0),
         acceleration: Math.max(values.acceleration, 0.01),
         scale: Math.max(values.scale, 1),
-        shortestOnly: shortestOnlyInput?.checked ?? false
+        shortestOnly: shortestOnlyInput?.checked ?? false,
+        shortestTimeOnly: shortestTimeOnlyInput?.checked ?? false
       };
     }
 
@@ -560,8 +562,22 @@
         }
         return shortest;
       }, null)?.typeKey ?? null;
+      const shortestTimePathKey = paths.reduce((shortest, current) => {
+        if (!shortest) return current;
+        const shortestTime = computeTravelTime(shortest.length, state.maxSpeed, state.acceleration);
+        const currentTime = computeTravelTime(current.length, state.maxSpeed, state.acceleration);
+        if (currentTime < shortestTime) {
+          return current;
+        }
+        return shortest;
+      }, null)?.typeKey ?? null;
       let orderedPaths = [];
-      if (state.shortestOnly) {
+      if (state.shortestTimeOnly) {
+        const shortestTimePath = paths.find((path) => path.typeKey === shortestTimePathKey);
+        if (shortestTimePath) {
+          orderedPaths = [shortestTimePath];
+        }
+      } else if (state.shortestOnly) {
         const shortestPath = paths.find((path) => path.typeKey === shortestPathKey);
         if (shortestPath) {
           orderedPaths = [shortestPath];
@@ -580,6 +596,9 @@
             orderedPaths.push(shortestPath);
           }
         }
+      }
+      if (orderedPaths.length > 0 && !orderedPaths.some((path) => path.typeKey === highlightedPathKey)) {
+        highlightedPathKey = orderedPaths[0].typeKey;
       }
 
       orderedPaths.forEach((path, index) => {
@@ -632,7 +651,16 @@
         pathList.appendChild(emptyList);
         return;
       }
-      paths.forEach((path, index) => {
+      if (orderedPaths.length === 0) {
+        const empty = document.createElement('div');
+        empty.textContent = '表示するパスがありません';
+        legend.appendChild(empty);
+        const emptyList = document.createElement('div');
+        emptyList.textContent = '表示するパスがありません';
+        pathList.appendChild(emptyList);
+        return;
+      }
+      orderedPaths.forEach((path, index) => {
         const travelTime = computeTravelTime(path.length, state.maxSpeed, state.acceleration);
         const item = document.createElement('div');
         item.className = 'legend-item';
@@ -669,7 +697,20 @@
       input.addEventListener('input', draw);
     });
     if (shortestOnlyInput) {
-      shortestOnlyInput.addEventListener('change', draw);
+      shortestOnlyInput.addEventListener('change', () => {
+        if (shortestOnlyInput.checked && shortestTimeOnlyInput) {
+          shortestTimeOnlyInput.checked = false;
+        }
+        draw();
+      });
+    }
+    if (shortestTimeOnlyInput) {
+      shortestTimeOnlyInput.addEventListener('change', () => {
+        if (shortestTimeOnlyInput.checked && shortestOnlyInput) {
+          shortestOnlyInput.checked = false;
+        }
+        draw();
+      });
     }
 
     canvas.addEventListener('mousedown', (event) => {
