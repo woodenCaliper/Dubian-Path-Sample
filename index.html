@@ -144,6 +144,17 @@
     .path-compare.mismatch {
       color: #c62828;
     }
+    .rv-status {
+      margin-top: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .rv-status.ok {
+      color: #1f7a3a;
+    }
+    .rv-status.ng {
+      color: #c62828;
+    }
   </style>
 </head>
 <body>
@@ -193,6 +204,10 @@
         <label for="acceleration">加減速度 [m/s] (0.01以上)</label>
         <input id="acceleration" type="number" step="0.1" value="1" min="0.01" />
       </div>
+      <div class="field">
+        <label for="radiusSpeedProduct">許容遠心力係数 [m/s^2]</label>
+        <input id="radiusSpeedProduct" type="number" step="0.1" value="0" min="0" />
+      </div>
 
       <h2>Viewer</h2>
       <div class="field">
@@ -206,6 +221,7 @@
         <input id="shortestOnly" type="checkbox" />
       </div>
       <div id="path-compare" class="path-compare"></div>
+      <div id="rv-status" class="rv-status"></div>
 
       <h2>生成パス一覧</h2>
       <div id="path-list" class="path-list"></div>
@@ -234,6 +250,7 @@
     const legend = document.getElementById('legend');
     const pathList = document.getElementById('path-list');
     const pathCompare = document.getElementById('path-compare');
+    const rvStatus = document.getElementById('rv-status');
     let highlightedPathKey = null;
     let viewOffset = { x: 0, y: 0 };
     let isPanning = false;
@@ -286,6 +303,7 @@
         R: Math.max(values.radius / 100, 0.01),
         maxSpeed: Math.max(values.maxSpeed, 0),
         acceleration: Math.max(values.acceleration, 0.01),
+        radiusSpeedProduct: Math.max(values.radiusSpeedProduct, 0),
         scale: Math.max(values.scale, 1),
         shortestOnly: shortestOnlyInput?.checked ?? false
       };
@@ -542,6 +560,28 @@
       return minWidth + (maxWidth - minWidth) * ratio;
     }
 
+    function segmentTypeAt(path, t) {
+      const tprime = t / path.rho;
+      const p1 = path.param[0];
+      const p2 = path.param[1];
+      if (tprime < p1) return path.types[0];
+      if (tprime < p1 + p2) return path.types[1];
+      return path.types[2];
+    }
+
+    function computeMaxCentrifugalCoefficient(path, maxSpeed, acceleration, sampleStep) {
+      if (path.length <= 0) return 0;
+      let maxProduct = 0;
+      for (let t = 0; t <= path.length; t += sampleStep) {
+        const speed = computeSpeedAt(t, path.length, maxSpeed, acceleration);
+        const type = segmentTypeAt(path, t);
+        const radius = type === 'S' ? 0 : path.rho;
+        const value = radius > 0 ? (speed * speed) / radius : 0;
+        maxProduct = Math.max(maxProduct, value);
+      }
+      return maxProduct;
+    }
+
     function draw() {
       resizeCanvas();
       const state = getState();
@@ -551,7 +591,7 @@
       drawGrid(state.scale);
 
       const paths = computePaths(state);
-      const sampleStep = Math.max(state.R / 15, 0.1);
+      const sampleStep = Math.max(state.R / 15, 0.01);
       if (paths.length > 0 && !paths.some((path) => path.typeKey === highlightedPathKey)) {
         highlightedPathKey = paths[0].typeKey;
       }
@@ -647,6 +687,10 @@
         pathCompare.textContent = '';
         pathCompare.classList.remove('match', 'mismatch');
       }
+      if (rvStatus) {
+        rvStatus.textContent = '';
+        rvStatus.classList.remove('ok', 'ng');
+      }
       if (paths.length === 0) {
         const empty = document.createElement('div');
         empty.textContent = '有効なDubins Pathがありません';
@@ -665,8 +709,32 @@
           pathCompare.classList.add('mismatch');
         }
       }
+      if (rvStatus) {
+        const maxCentrifugalInView = orderedPaths.reduce((maxValue, path) => {
+          const value = computeMaxCentrifugalCoefficient(
+            path,
+            state.maxSpeed,
+            state.acceleration,
+            sampleStep
+          );
+          return Math.max(maxValue, value);
+        }, 0);
+        if (maxCentrifugalInView > state.radiusSpeedProduct) {
+          rvStatus.textContent = '表示中のパスに、許容遠心力係数を超えるものが表示されています';
+          rvStatus.classList.add('ng');
+        } else {
+          rvStatus.textContent = '表示中のパスは、すべて許容遠心力係数以内です';
+          rvStatus.classList.add('ok');
+        }
+      }
       paths.forEach((path, index) => {
         const travelTime = computeTravelTime(path.length, state.maxSpeed, state.acceleration);
+        const maxCentrifugalCoefficient = computeMaxCentrifugalCoefficient(
+          path,
+          state.maxSpeed,
+          state.acceleration,
+          sampleStep
+        );
         const item = document.createElement('div');
         item.className = 'legend-item';
         const swatch = document.createElement('div');
@@ -691,7 +759,7 @@
         listSwatch.className = 'path-swatch';
         listSwatch.style.background = colorForKey(path.typeKey);
         const listText = document.createElement('div');
-        listText.textContent = `${index + 1}. ${path.typeKey} / 色: ${colorForKey(path.typeKey)} / 長さ: ${path.length.toFixed(2)} / 時間: ${travelTime.toFixed(2)}s`;
+        listText.textContent = `${index + 1}. ${path.typeKey} / 色: ${colorForKey(path.typeKey)} / 長さ: ${path.length.toFixed(2)} / 時間: ${travelTime.toFixed(2)}s / 最大遠心力係数: ${maxCentrifugalCoefficient.toFixed(2)}`;
         listItem.appendChild(listSwatch);
         listItem.appendChild(listText);
         pathList.appendChild(listItem);
