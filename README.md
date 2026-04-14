@@ -14,3 +14,7 @@ node scripts/smoke.test.js
 4. デプロイ完了後、`https://<ユーザー名>.github.io/<リポジトリ名>/` で表示できる。
 
 > 初回だけ Pages の有効化が必要です。以降は push のたびに更新されます。
+
+## 公開URL
+
+https://woodencaliper.github.io/Dubian-Path-Sample/
